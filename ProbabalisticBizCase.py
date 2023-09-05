@@ -14,60 +14,17 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import datetime
+import DistributionTools as dt
 #import pymc as pm
 
 sns.set_style('whitegrid')
 
 num_reps = 10000 # used for initial graphs of population shape--nothing afterwards.
 
-class LogNormal (object):
-    def __init__(self, num_reps):
-        self.num_reps = num_reps
-        self.mu = 10
-        self.sigma = 1
-        self.values = []
-        
-    # MinMax assumes values represent 90% range of values
-    def MinMaxtoMuSigma (self, minValue, maxValue):
-        self.mu = (np.log(minValue)+np.log(maxValue))/2
-        self.sigma = (np.log(maxValue)-np.log(minValue))/3.29
-        return [self.mu,self.sigma]
-    
-    def Average (self):
-        average = np.exp(self.mu + self.sigma**2 / 2)
-        return average
-    
-    def MakeDistrib (self, significantDigits):
-        self.values = np.random.lognormal(self.mu, self.sigma, self.num_reps).round(significantDigits)
-        return self.values
-    
-    def GetValue (self, significantDigits):
-        value = np.random.lognormal(self.mu, self.sigma, 1).round(significantDigits)
-        return value[0]
-    
-    #this function outputs a 2 column data frame: [count, bin] where bin values
-    # are defined by binArray (1D number array)
-    def Histogram (self, binArray):
-        histogram = np.histogram(self.values, bins=binArray, density=False)
-        histDataFrame = pd.DataFrame(histogram).T
-        histDataFrame.columns = ["count", "bin"]
-        return histDataFrame
-    
-    #this function outputs a 3 column data frame: [count, bin, bin labels]
-    # where bin values and count are normalized vs. num_reps and 
-    # bin labels = the actual values.
-    # goal:  create a dataframe that bins appropriately, but can be printed
-    def NormHist (self, binArray):
-        histogram = self.Histogram(binArray)
-        normHist = pd.DataFrame()
-        normHist["count"] = histogram["count"]/self.num_reps
-        normHist["bin"] = histogram["bin"]/self.num_reps
-        normHist["binLabels"] = histogram["bin"]
-        return normHist
 
 #create lognormal user distribution per site
 siteUsersMinMax = [5,25]
-users = LogNormal(num_reps)
+users = dt.LogNormal(num_reps)
 users.MinMaxtoMuSigma(siteUsersMinMax[0], siteUsersMinMax[1])
 users.MakeDistrib(significantDigits=0)
 bins = np.arange(users.values.max().round(0))
@@ -82,7 +39,7 @@ print(usersHist.to_string(index=False))
 
 #create lognormal device distribution per site
 siteDevicesMinMax = [200,50000]
-devices = LogNormal(num_reps)
+devices = dt.LogNormal(num_reps)
 devices.MinMaxtoMuSigma(siteDevicesMinMax[0], siteDevicesMinMax[1])
 devices.MakeDistrib(significantDigits=0)
 histBins = [i*siteDevicesMinMax[0] for i in range(2*siteDevicesMinMax[1]//siteDevicesMinMax[0])]
@@ -100,7 +57,7 @@ sns.scatterplot(data=deviceHist, y="Density", x="Number of Devices", ax=ax2)
 
 #######################
 #Building the device revenue MC biz case
-numScenarios = 1000
+numScenarios = 5
 custPerScenario = 200
 discountTable = {
     0: 0,
@@ -183,7 +140,7 @@ for i in range(len(scenarios)):
     #print("cust rev record: ", custRev.to_string(index=True))
     #print(totalRevenue.to_string(index=True))
     if scenarios.loc[i,"Scenario"] in totalRevenue['Scenario'].values:
-        totalRevenue.loc[totalRevenue['Scenario']==scenarios.loc[i,"Scenario"],'Monthly Device Revenue'] += scenarios.loc[i,"Monthly device Revenue"]
+        totalRevenue.loc[totalRevenue['Scenario']==scenarios.loc[i,"Scenario"],'Monthly Device Revenue'] += scenarios.loc[i,"Monthly Device Revenue"]
         totalRevenue.loc[totalRevenue['Scenario']==scenarios.loc[i,"Scenario"],'Monthly Other Revenue'] += scenarios.loc[i,"Monthly Other Revenue"]
         totalRevenue.loc[totalRevenue['Scenario']==scenarios.loc[i,"Scenario"],'Monthly Users Revenue'] += scenarios.loc[i,"Monthly Users Revenue"]
         totalRevenue.loc[totalRevenue['Scenario']==scenarios.loc[i,"Scenario"],'Monthly Total Revenue'] += scenarios.loc[i,"Monthly Total Revenue"]
